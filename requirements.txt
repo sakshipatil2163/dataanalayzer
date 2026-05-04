@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pandas
+numpy
+matplotlib
+seaborn
+openpyxl
+python-multipart
+scipy
+pytest
+pytest-html

@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Intelligent Dataset Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f4;
+    --muted: #888896;
+    --accent: #7c6dfa;
+    --accent2: #4fc8a4;
+    --danger: #f06b6b;
+    --warn: #f4a35a;
+    --tag-bg: rgba(124,109,250,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.2rem 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .logo span { color: var(--accent); }
+  .logo-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    background: var(--tag-bg);
+    color: var(--accent);
+    border: 1px solid rgba(124,109,250,0.3);
+    border-radius: 4px;
+    padding: 2px 7px;
+    margin-left: 10px;
+    vertical-align: middle;
+  }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem; }
+
+  /* ── Hero ── */
+  .hero { text-align: center; margin-bottom: 3rem; }
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #f0f0f4 30%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    color: var(--muted);
+    margin-top: 0.8rem;
+    font-size: 0.95rem;
+    font-weight: 300;
+  }
+
+  /* ── Upload ── */
+  .upload-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: 14px;
+    padding: 3rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+    margin-bottom: 2rem;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(124,109,250,0.04); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .upload-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+  .upload-zone h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+  .upload-zone p { color: var(--muted); font-size: 0.85rem; }
+
+  #file-info {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 1rem 1.4rem;
+    margin-bottom: 1.5rem;
+    display: none;
+    align-items: center;
+    gap: 1rem;
+  }
+  #file-info .file-name { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--accent2); }
+
+  .btn {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.7rem 2rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.01em;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #9082fa; transform: translateY(-1px); }
+  .btn-primary:disabled { background: #444; color: var(--muted); cursor: not-allowed; transform: none; }
+  .btn-outline {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border2);
+  }
+  .btn-outline:hover { color: var(--text); border-color: var(--text); }
+
+  .actions { display: flex; gap: 0.8rem; justify-content: center; margin-bottom: 2.5rem; }
+
+  /* ── Status ── */
+  #status-bar {
+    display: none;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.9rem 1.4rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    font-size: 0.85rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+  #status-bar.loading { border-color: rgba(124,109,250,0.3); }
+  #status-bar.success { border-color: rgba(79,200,164,0.3); }
+  #status-bar.error { border-color: rgba(240,107,107,0.3); }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Results ── */
+  #results { display: none; }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 2.5rem 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Stats row ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+  }
+  .stat-card .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+  .stat-card .value { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text); }
+  .stat-card .value.accent { color: var(--accent); }
+  .stat-card .value.green { color: var(--accent2); }
+
+  /* ── Type badge ── */
+  .type-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 100px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .type-pill.sales { background: rgba(244,163,90,0.15); color: var(--warn); border: 1px solid rgba(244,163,90,0.25); }
+  .type-pill.parking { background: rgba(79,200,164,0.12); color: var(--accent2); border: 1px solid rgba(79,200,164,0.2); }
+  .type-pill.student { background: rgba(124,109,250,0.12); color: var(--accent); border: 1px solid rgba(124,109,250,0.2); }
+  .type-pill.generic { background: rgba(136,136,150,0.12); color: var(--muted); border: 1px solid rgba(136,136,150,0.2); }
+
+  /* ── Column tags ── */
+  .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 5px;
+  }
+  .tag.num { background: rgba(79,200,164,0.1); color: var(--accent2); border: 1px solid rgba(79,200,164,0.18); }
+  .tag.cat { background: rgba(244,163,90,0.1); color: var(--warn); border: 1px solid rgba(244,163,90,0.18); }
+  .tag.dt  { background: rgba(124,109,250,0.1); color: var(--accent); border: 1px solid rgba(124,109,250,0.18); }
+
+  /* ── Insights ── */
+  .insight-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+  .insight-list li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 0.7rem 1.1rem;
+    font-size: 0.87rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* ── Analysis cards ── */
+  .analysis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.2rem; }
+  .analysis-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .analysis-card .card-header {
+    padding: 1rem 1.2rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .analysis-card .col-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .analysis-card .card-body { padding: 1rem 1.2rem; }
+  .analysis-card .meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+  }
+  .analysis-card .meta-row span:last-child { color: var(--text); font-weight: 500; }
+  .analysis-card img { width: 100%; margin-top: 0.8rem; border-radius: 8px; }
+
+  /* ── Preview table ── */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  thead tr { background: var(--surface2); }
+  th {
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 0.7rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.6rem 1rem;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+
+  /* ── API config ── */
+  .config-bar {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 1rem 1.4rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .config-bar label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+  .config-bar input[type="text"] {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    padding: 0.5rem 0.9rem;
+    outline: none;
+    min-width: 200px;
+  }
+  .config-bar input[type="text"]:focus { border-color: var(--accent); }
+  .api-status { font-size: 0.75rem; color: var(--accent2); white-space: nowrap; }
+  .api-status.disconnected { color: var(--danger); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">dataset<span>.</span>analyzer <span class="logo-badge">v1.0</span></div>
+  <div style="font-size:0.78rem; color:var(--muted); font-family:'DM Mono',monospace;">Intelligent EDA System</div>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Intelligent Dataset Analyzer</h1>
+    <p>Upload a CSV or Excel file — automatic EDA, type detection, and insights in seconds.</p>
+  </div>
+
+  <!-- API Config -->
+  <div class="config-bar">
+    <label>Backend URL</label>
+    <input type="text" id="api-url" value="http://localhost:8000" placeholder="http://localhost:8000"/>
+    <button class="btn btn-outline" onclick="pingBackend()" style="padding:0.45rem 1rem;font-size:0.8rem;">Ping</button>
+    <span class="api-status disconnected" id="api-status">● not connected</span>
+  </div>
+
+  <!-- Upload zone -->
+  <div class="upload-zone" id="drop-zone">
+    <input type="file" id="file-input" accept=".csv,.xlsx,.xls"/>
+    <div class="upload-icon">📂</div>
+    <h2>Drop your dataset here</h2>
+    <p>CSV or Excel (.xlsx / .xls) · Max 50MB</p>
+  </div>
+
+  <!-- File info -->
+  <div id="file-info">
+    <span style="font-size:1.3rem;">📄</span>
+    <span class="file-name" id="file-name-text">—</span>
+    <span style="color:var(--muted);font-size:0.8rem;" id="file-size-text"></span>
+    <button class="btn btn-outline" onclick="clearFile()" style="margin-left:auto;padding:0.35rem 0.9rem;font-size:0.78rem;">✕ Clear</button>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="analyze-btn" onclick="analyzeFile()" disabled>Analyze Dataset →</button>
+  </div>
+
+  <!-- Status bar -->
+  <div id="status-bar">
+    <div class="spinner" id="status-spinner"></div>
+    <span id="status-text">Analyzing…</span>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <!-- Overview -->
+    <div class="section-title">overview</div>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+      <div id="type-badge"></div>
+      <span style="color:var(--muted);font-size:0.82rem;" id="shape-text"></span>
+    </div>
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <!-- Column types -->
+    <div class="section-title">column types</div>
+    <div style="display:flex;flex-direction:column;gap:0.8rem;" id="col-types"></div>
+
+    <!-- Insights -->
+    <div class="section-title">auto-generated insights</div>
+    <ul class="insight-list" id="insights-list"></ul>
+
+    <!-- Numeric analysis -->
+    <div class="section-title">numeric analysis</div>
+    <div class="analysis-grid" id="numeric-grid"></div>
+
+    <!-- Categorical analysis -->
+    <div class="section-title">categorical analysis</div>
+    <div class="analysis-grid" id="categorical-grid"></div>
+
+    <!-- Preview -->
+    <div class="section-title">data preview (first 5 rows)</div>
+    <div class="table-wrap">
+      <table id="preview-table"></table>
+    </div>
+  </div>
+</main>
+
+<script>
+  let selectedFile = null;
+
+  // ── Drag/drop ──────────────────────────────────────────────────────────
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+  function setFile(f) {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (!['csv','xlsx','xls'].includes(ext)) {
+      showStatus('error', `Unsupported file type: .${ext}. Use CSV or Excel.`);
+      return;
+    }
+    selectedFile = f;
+    const info = document.getElementById('file-info');
+    info.style.display = 'flex';
+    document.getElementById('file-name-text').textContent = f.name;
+    document.getElementById('file-size-text').textContent = (f.size / 1024).toFixed(1) + ' KB';
+    document.getElementById('analyze-btn').disabled = false;
+    hideStatus();
+    document.getElementById('results').style.display = 'none';
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    fileInput.value = '';
+    document.getElementById('file-info').style.display = 'none';
+    document.getElementById('analyze-btn').disabled = true;
+    document.getElementById('results').style.display = 'none';
+    hideStatus();
+  }
+
+  // ── Backend ping ───────────────────────────────────────────────────────
+  async function pingBackend() {
+    const url = document.getElementById('api-url').value.replace(/\/$/, '');
+    const el = document.getElementById('api-status');
+    try {
+      const r = await fetch(url + '/');
+      if (r.ok) {
+        el.textContent = '● connected';
+        el.className = 'api-status';
+      } else throw new Error();
+    } catch {
+      el.textContent = '● not connected';
+      el.className = 'api-status disconnected';
+    }
+  }
+
+  // ── Analyze ────────────────────────────────────────────────────────────
+  async function analyzeFile() {
+    if (!selectedFile) return;
+    const base = document.getElementById('api-url').value.replace(/\/$/, '');
+
+    showStatus('loading', 'Uploading and analyzing your dataset…');
+    document.getElementById('analyze-btn').disabled = true;
+    document.getElementById('results').style.display = 'none';
+
+    const form = new FormData();
+    form.append('file', selectedFile);
+
+    try {
+      const res = await fetch(`${base}/analyze`, { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Unknown error');
+      renderResults(data);
+      showStatus('success', `Analysis complete — ${data.shape.rows} rows × ${data.shape.cols} columns detected.`);
+    } catch (err) {
+      showStatus('error', '⚠ ' + err.message + '  —  Make sure the backend is running and CORS is allowed.');
+    } finally {
+      document.getElementById('analyze-btn').disabled = false;
+    }
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────
+  function renderResults(d) {
+    document.getElementById('results').style.display = 'block';
+
+    // Type badge
+    const typeLabels = { sales: '📈 Sales', parking: '🚗 Parking', student: '🎓 Student', generic: '📊 Generic' };
+    document.getElementById('type-badge').innerHTML =
+      `<span class="type-pill ${d.dataset_type}">${typeLabels[d.dataset_type] || d.dataset_type}</span>`;
+    document.getElementById('shape-text').textContent =
+      `${d.shape.rows.toLocaleString()} rows · ${d.shape.cols} columns`;
+
+    // Stats
+    const sg = document.getElementById('stats-grid');
+    sg.innerHTML = `
+      <div class="stat-card"><div class="label">Total Rows</div><div class="value accent">${d.shape.rows.toLocaleString()}</div></div>
+      <div class="stat-card"><div class="label">Columns</div><div class="value">${d.shape.cols}</div></div>
+      <div class="stat-card"><div class="label">Numeric</div><div class="value green">${d.column_types.numeric.length}</div></div>
+      <div class="stat-card"><div class="label">Categorical</div><div class="value">${d.column_types.categorical.length}</div></div>
+      <div class="stat-card"><div class="label">Datetime</div><div class="value">${d.column_types.datetime.length}</div></div>
+    `;
+
+    // Column types
+    const ct = document.getElementById('col-types');
+    ct.innerHTML = '';
+    const groups = [
+      { label: 'Numeric', cols: d.column_types.numeric, cls: 'num' },
+      { label: 'Categorical', cols: d.column_types.categorical, cls: 'cat' },
+      { label: 'Datetime', cols: d.column_types.datetime, cls: 'dt' }
+    ];
+    groups.forEach(g => {
+      if (!g.cols.length) return;
+      ct.innerHTML += `<div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.4rem;font-family:'DM Mono',monospace;">${g.label}</div>
+        <div class="tags">${g.cols.map(c => `<span class="tag ${g.cls}">${c}</span>`).join('')}</div>
+      </div>`;
+    });
+
+    // Insights
+    const il = document.getElementById('insights-list');
+    il.innerHTML = d.insights.length
+      ? d.insights.map(i => `<li>${i}</li>`).join('')
+      : '<li style="color:var(--muted)">No insights generated.</li>';
+
+    // Numeric cards
+    const ng = document.getElementById('numeric-grid');
+    ng.innerHTML = '';
+    d.numeric_analysis.forEach(a => {
+      ng.innerHTML += `
+        <div class="analysis-card">
+          <div class="card-header">
+            <span class="col-name">${a.column}</span>
+            <span class="tag num">numeric</span>
+          </div>
+          <div class="card-body">
+            <div class="meta-row"><span>Mean</span><span>${a.mean}</span></div>
+            <div class="meta-row"><span>Median</span><span>${a.median}</span></div>
+            <div class="meta-row"><span>Std Dev</span><span>${a.std}</span></div>
+            <div class="meta-row"><span>Min / Max</span><span>${a.min} / ${a.max}</span></div>
+            <div class="meta-row"><span>Outliers (z>3)</span><span>${a.outliers}</span></div>
+            ${a.chart ? `<img src="data:image/png;base64,${a.chart}" alt="chart"/>` : ''}
+          </div>
+        </div>`;
+    });
+    if (!d.numeric_analysis.length) ng.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No numeric columns found.</p>';
+
+    // Categorical cards
+    const cg = document.getElementById('categorical-grid');
+    cg.innerHTML = '';
+    d.categorical_analysis.forEach(a => {
+      cg.innerHTML += `
+        <div class="analysis-card">
+          <div class="card-header">
+            <span class="col-name">${a.column}</span>
+            <span class="tag cat">categorical</span>
+          </div>
+          <div class="card-body">
+            <div class="meta-row"><span>Top Category</span><span>${a.top_category}</span></div>
+            <div class="meta-row"><span>Top Count</span><span>${a.top_count}</span></div>
+            <div class="meta-row"><span>Unique Values</span><span>${a.unique_count}</span></div>
+            ${a.chart ? `<img src="data:image/png;base64,${a.chart}" alt="chart"/>` : ''}
+          </div>
+        </div>`;
+    });
+    if (!d.categorical_analysis.length) cg.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No categorical columns found.</p>';
+
+    // Preview table
+    if (d.preview && d.preview.length) {
+      const cols = Object.keys(d.preview[0]);
+      const table = document.getElementById('preview-table');
+      table.innerHTML = `
+        <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>${d.preview.map(row =>
+          `<tr>${cols.map(c => `<td>${row[c] ?? ''}</td>`).join('')}</tr>`
+        ).join('')}</tbody>`;
+    }
+
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────
+  function showStatus(type, msg) {
+    const bar = document.getElementById('status-bar');
+    bar.style.display = 'flex';
+    bar.className = type;
+    document.getElementById('status-spinner').style.display = type === 'loading' ? 'block' : 'none';
+    const colors = { loading: '#888', success: 'var(--accent2)', error: 'var(--danger)' };
+    document.getElementById('status-text').style.color = colors[type] || 'var(--text)';
+    document.getElementById('status-text').textContent = msg;
+  }
+  function hideStatus() {
+    document.getElementById('status-bar').style.display = 'none';
+  }
+
+  // Auto-ping on load
+  window.addEventListener('load', pingBackend);
+</script>
+</body>
+</html>
